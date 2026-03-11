@@ -1,5 +1,7 @@
 use std::{iter::Peekable, str::Chars, vec};
 
+use crate::types::IntType;
+
 pub struct Tokenizer<'a> {
     iter: Peekable<Chars<'a>>,
 }
@@ -29,7 +31,7 @@ impl<'a> Iterator for Tokenizer<'a> {
 #[derive(Debug)]
 pub enum Token {
     Symbol(String),
-    Number(usize),
+    Number(IntType),
     LBrace,
     RBrace,
 }

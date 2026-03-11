@@ -1,17 +1,22 @@
+use log::info;
 use std::collections::HashMap;
+use std::env;
 use std::fmt::Display;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::LazyLock;
+use std::sync::Mutex;
 
 use crate::prims::Prims;
+
+pub type IntType = isize;
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Data {
     Cons(Arc<Data>, Arc<Data>),
     Closure(Arc<Data>, Arc<Data>),
     Prim(Prims),
-    Number(usize),
+    Number(IntType),
     Atomic(String),
     Nil,
     Error,
@@ -51,46 +56,53 @@ static PRIM_TABLE: LazyLock<HashMap<String, Prims>> = LazyLock::new(|| {
     table.insert("/".to_string(), Prims::Div);
     table.insert("define".to_string(), Prims::Define);
     table.insert("lambda".to_string(), Prims::Lambda);
+    table.insert("if".to_string(), Prims::If);
+    table.insert("eq?".to_string(), Prims::Eq);
+    table.insert("quote".to_string(), Prims::Quote);
+    table.insert("mod".to_string(), Prims::Mod);
     table
 });
 
-pub static ENV: LazyLock<BoxedData> = LazyLock::new(|| Arc::new(Data::Nil));
+pub static ENV: LazyLock<Mutex<BoxedData>> = LazyLock::new(|| Mutex::new(Data::nil()));
 
 impl Data {
     pub fn cons(car: BoxedData, cdr: BoxedData) -> BoxedData {
         Arc::new(Data::Cons(car, cdr))
     }
-    pub fn number(num: usize) -> BoxedData {
+    pub fn number(num: IntType) -> BoxedData {
         Arc::new(Data::Number(num))
     }
     pub fn atom(sym: &String) -> BoxedData {
         Arc::new(Data::Atomic(sym.clone()))
     }
-    pub fn pair(a: BoxedData, b: BoxedData, env: &mut BoxedData) -> BoxedData {
+    pub fn pair(a: BoxedData, b: BoxedData, env: BoxedData) -> BoxedData {
         Self::cons(Self::cons(a, b), env.clone())
     }
     pub fn prim(sym: &String) -> Option<BoxedData> {
         let c = PRIM_TABLE.get(sym)?;
         Some(Arc::new(Data::Prim(c.clone())))
     }
-    pub fn closure(param: BoxedData, body: BoxedData, env: &mut BoxedData) -> BoxedData {
-        let g_env = ENV.clone();
-        let mut pair_env = if Self::equ(g_env, env.clone()) {
+    pub fn closure(param: BoxedData, body: BoxedData, env: BoxedData) -> BoxedData {
+        info!("closure");
+        info!("{param} {body} {env}");
+        let g_env = ENV.lock().unwrap();
+        info!("{g_env}");
+        let pair_env = if Self::equ(g_env.clone(), env.clone()) {
             Self::nil()
         } else {
             env.clone()
         };
-        let pair_result = Self::pair(param, body, &mut pair_env);
-        if let Data::Cons(ref car, ref cdr) = *pair_result {
-            Arc::new(Data::Closure(car.clone(), cdr.clone()))
-        } else {
-            Self::err()
-        }
+        Self::pair(param.clone(), body.clone(), pair_env.clone());
+        Arc::new(Data::Closure(Data::cons(param, body), pair_env))
     }
     pub fn nil() -> BoxedData {
         Arc::new(Data::Nil)
     }
     pub fn err() -> BoxedData {
+        info!("err");
+        if env::vars().any(|(x, _)| x == "ERR_PAN") {
+            panic!("err");
+        }
         Arc::new(Data::Error)
     }
     pub fn equ(a: BoxedData, b: BoxedData) -> bool {
@@ -117,7 +129,9 @@ impl Data {
             Self::err()
         }
     }
-    pub fn assoc(var: BoxedData, env: &mut BoxedData) -> BoxedData {
+    pub fn assoc(var: BoxedData, env: BoxedData) -> BoxedData {
+        info!("assoc {var}");
+        info!("{env}");
         let mut env = env.clone();
         while let Data::Cons(car, _) = env.as_ref() {
             if *Data::car(car.clone()) == *var {
@@ -127,32 +141,45 @@ impl Data {
         }
         return Self::err();
     }
-    pub fn eval(var: BoxedData, env: &mut BoxedData) -> BoxedData {
+    pub fn eval(var: BoxedData, env: BoxedData) -> BoxedData {
+        info!("eval");
+        info!("{var} {env}");
         match var.deref() {
-            Self::Atomic(_) => Self::assoc(var, env),
-            Self::Closure(car, cdr) => Self::apply(Self::eval(car.clone(), env), cdr.clone(), env),
-            Self::Cons(car, cdr) => Self::apply(Self::eval(car.clone(), env), cdr.clone(), env),
+            Self::Atomic(_) => Self::assoc(var, env.clone()),
+            // Self::Closure(car, cdr) => {
+            //     Self::apply(Self::eval(car.clone(), env.clone()), cdr.clone(), env)
+            // }
+            Self::Cons(car, cdr) => {
+                Self::apply(Self::eval(car.clone(), env.clone()), cdr.clone(), env)
+            }
             _ => var,
         }
     }
-    pub fn apply(clos: BoxedData, param: BoxedData, env: &mut BoxedData) -> BoxedData {
+    pub fn apply(clos: BoxedData, param: BoxedData, env: BoxedData) -> BoxedData {
+        info!("apply");
+        info!("{clos} {param} {env}");
         match clos.deref() {
             Self::Prim(prim) => prim.eval(param, env),
             Self::Closure(_, _) => Self::reduce(clos, param, env),
             _ => Self::err(),
         }
     }
-    pub fn evlist(var: BoxedData, env: &mut BoxedData) -> BoxedData {
+    pub fn evlist(var: BoxedData, env: BoxedData) -> BoxedData {
+        info!("evlist");
+        info!("{var} {env}");
         match var.deref() {
-            Self::Cons(car, cdr) => {
-                Self::cons(Self::eval(car.clone(), env), Self::evlist(cdr.clone(), env))
-            }
+            Self::Cons(car, cdr) => Self::cons(
+                Self::eval(car.clone(), env.clone()),
+                Self::evlist(cdr.clone(), env),
+            ),
             Self::Atomic(_) => Self::assoc(var, env),
             _ => Self::nil(),
         }
     }
 
-    pub fn bind(param: BoxedData, values: BoxedData, env: &mut BoxedData) -> BoxedData {
+    pub fn bind(param: BoxedData, values: BoxedData, env: BoxedData) -> BoxedData {
+        info!("bind");
+        info!("{param} {values} {env}");
         if Self::not(param.clone()) {
             env.clone()
         } else {
@@ -160,27 +187,32 @@ impl Data {
                 Self::bind(
                     Self::cdr(param.clone()),
                     Self::cdr(values.clone()),
-                    &mut Self::pair(Self::car(param), Self::car(values), env),
+                    Self::pair(Self::car(param), Self::car(values), env),
                 )
             } else {
+                info!("{param} {values} {env}");
                 Self::pair(param, values, env)
             }
         }
     }
 
-    pub fn reduce(clos: BoxedData, param: BoxedData, env: &mut BoxedData) -> BoxedData {
-        Self::eval(
-            Self::cdr(Self::car(clos.clone())),
-            &mut Self::bind(
-                Self::car(Self::car(clos.clone())),
-                Self::evlist(param, env),
-                &mut {
-                    if Self::not(Self::cdr(clos.clone())) {
-                        return env.clone();
-                    }
-                    Self::cdr(clos)
-                },
-            ),
-        )
+    pub fn reduce(clos: BoxedData, param: BoxedData, env: BoxedData) -> BoxedData {
+        info!("reduce");
+        info!("{clos} {param} {env}");
+        let body = Self::cdr(Self::car(clos.clone()));
+        let params = Self::car(Self::car(clos.clone()));
+        let values = Self::evlist(param, env);
+        println!("{values}");
+        let env = Self::bind(params, values, {
+            if Self::not(Self::cdr(clos.clone())) {
+                println!("use global env");
+                let lock = ENV.lock().unwrap();
+                lock.clone()
+            } else {
+                println!("use local env");
+                Self::cdr(clos)
+            }
+        });
+        Self::eval(body, env)
     }
 }

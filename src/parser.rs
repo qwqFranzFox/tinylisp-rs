@@ -1,5 +1,7 @@
 use std::iter::Peekable;
 
+use log::debug;
+
 use crate::{
     tokenizer::{Token, Tokenizer},
     types::Data,
@@ -17,7 +19,7 @@ impl<'a> Parser<'a> {
         }
     }
     pub fn eval(&mut self) -> Arc<Data> {
-        Self::parse(&mut self.tokens).unwrap_or(Data::err())
+        Self::parse(&mut self.tokens).unwrap_or_else(Data::err)
     }
     fn parse(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
         if let Some(token) = tokens.peek() {
@@ -47,6 +49,7 @@ impl<'a> Parser<'a> {
         ));
     }
     fn list(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+        debug!("list");
         let peek = tokens.peek()?;
         match peek {
             Token::RBrace => {
