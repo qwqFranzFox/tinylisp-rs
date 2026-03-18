@@ -10,7 +10,7 @@ mod tokenizer;
 mod types;
 
 fn main() {
-    env_logger::init();
+    env_logger::builder().init();
     let tru = Data::atom(&"#t".to_string());
     {
         let mut env = ENV.lock().unwrap();

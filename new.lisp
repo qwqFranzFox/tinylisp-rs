@@ -2,3 +2,5 @@
 (define gcd (lambda (a b) (if (eq? b 0) a (gcd b (mod a b)))))
 (func 10 10)
 (gcd 24 27)
+(define newfunc (lambda (a b) (lambda (x y) (+ (- x a) (* y b)))))
+((newfunc 1 2) 1 2)

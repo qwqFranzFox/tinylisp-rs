@@ -49,7 +49,6 @@ impl<'a> Parser<'a> {
         ));
     }
     fn list(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
-        debug!("list");
         let peek = tokens.peek()?;
         match peek {
             Token::RBrace => {

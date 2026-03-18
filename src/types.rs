@@ -202,14 +202,11 @@ impl Data {
         let body = Self::cdr(Self::car(clos.clone()));
         let params = Self::car(Self::car(clos.clone()));
         let values = Self::evlist(param, env);
-        println!("{values}");
         let env = Self::bind(params, values, {
             if Self::not(Self::cdr(clos.clone())) {
-                println!("use global env");
                 let lock = ENV.lock().unwrap();
                 lock.clone()
             } else {
-                println!("use local env");
                 Self::cdr(clos)
             }
         });

@@ -59,11 +59,29 @@ impl Prims {
     }
 
     fn mul(a: BoxedData, env: BoxedData) -> BoxedData {
-        todo!()
+        let op1 = Data::car(a.clone());
+        let op2 = Data::car(Data::cdr(a.clone()));
+        if let (Data::Number(num1), Data::Number(num2)) = (
+            Data::eval(op1, env.clone()).deref(),
+            Data::eval(op2, env).deref(),
+        ) {
+            Data::number(num1 * num2)
+        } else {
+            Data::err()
+        }
     }
 
     fn div(a: BoxedData, env: BoxedData) -> BoxedData {
-        todo!()
+        let op1 = Data::car(a.clone());
+        let op2 = Data::car(Data::cdr(a.clone()));
+        if let (Data::Number(num1), Data::Number(num2)) = (
+            Data::eval(op1, env.clone()).deref(),
+            Data::eval(op2, env).deref(),
+        ) {
+            Data::number(num1 * num2)
+        } else {
+            Data::err()
+        }
     }
 
     fn mod_(a: BoxedData, env: BoxedData) -> BoxedData {
@@ -115,7 +133,6 @@ impl Prims {
         let cond = Data::car(a.clone());
         let op1 = Data::car(Data::cdr(a.clone()));
         let op2 = Data::car(Data::cdr(Data::cdr(a)));
-        println!("{cond} {op1} {op2}");
         let cond = Data::eval(cond, env.clone());
         if !Data::not(cond) {
             Data::eval(op1, env)
