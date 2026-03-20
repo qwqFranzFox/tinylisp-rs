@@ -1,6 +1,6 @@
-use std::ops::{Deref, DerefMut};
-
+use crate::ports::ToString;
 use crate::types::{BoxedData, Data, ENV};
+use core::ops::{Deref, DerefMut};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Prims {
@@ -14,6 +14,7 @@ pub enum Prims {
     If,
     Eq,
     Mod,
+    Eval,
 }
 
 impl Prims {
@@ -29,6 +30,7 @@ impl Prims {
             Prims::If => Self::if_(a, env),
             Prims::Eq => Self::equ(a, env),
             Prims::Mod => Self::mod_(a, env),
+            Prims::Eval => Self::ev(a, env),
         }
     }
 
@@ -101,7 +103,7 @@ impl Prims {
         let op1 = Data::car(a.clone());
         let op2 = Data::car(Data::cdr(a.clone()));
         let result = Data::eval(op2.clone(), env.clone());
-        let mut global_env = ENV.lock().unwrap();
+        let mut global_env = ENV.write();
         let global_env = global_env.deref_mut();
         *global_env = Data::pair(op1.clone(), result, global_env.clone());
         return op1;
@@ -139,5 +141,8 @@ impl Prims {
         } else {
             Data::eval(op2, env)
         }
+    }
+    fn ev(a: BoxedData, env: BoxedData) -> BoxedData {
+        return Data::eval(a, env);
     }
 }

@@ -1,13 +1,10 @@
-use log::info;
-use std::collections::HashMap;
-use std::env;
-use std::fmt::Display;
-use std::ops::Deref;
-use std::sync::Arc;
-use std::sync::LazyLock;
-use std::sync::Mutex;
-
+use crate::ports::Arc;
+use crate::ports::Lazy;
+use crate::ports::RwLock;
+use crate::ports::String;
 use crate::prims::Prims;
+use core::fmt::Display;
+use core::ops::Deref;
 
 pub type IntType = isize;
 
@@ -25,7 +22,7 @@ pub enum Data {
 pub type BoxedData = Arc<Data>;
 
 impl Display for Data {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Data::Cons(car, cdr) => {
                 if Data::not(cdr.clone()) {
@@ -48,22 +45,24 @@ impl Display for Data {
     }
 }
 
-static PRIM_TABLE: LazyLock<HashMap<String, Prims>> = LazyLock::new(|| {
-    let mut table = HashMap::new();
-    table.insert("+".to_string(), Prims::Add);
-    table.insert("-".to_string(), Prims::Sub);
-    table.insert("*".to_string(), Prims::Mul);
-    table.insert("/".to_string(), Prims::Div);
-    table.insert("define".to_string(), Prims::Define);
-    table.insert("lambda".to_string(), Prims::Lambda);
-    table.insert("if".to_string(), Prims::If);
-    table.insert("eq?".to_string(), Prims::Eq);
-    table.insert("quote".to_string(), Prims::Quote);
-    table.insert("mod".to_string(), Prims::Mod);
-    table
-});
+fn to_prim(s: &str) -> Option<Prims> {
+    return match s {
+        "+" => Some(Prims::Add),
+        "-" => Some(Prims::Sub),
+        "*" => Some(Prims::Mul),
+        "/" => Some(Prims::Div),
+        "%" => Some(Prims::Mod),
+        "if" => Some(Prims::If),
+        "eq?" => Some(Prims::Eq),
+        "define" => Some(Prims::Define),
+        "lambda" => Some(Prims::Lambda),
+        "quote" => Some(Prims::Quote),
+        "eval" => Some(Prims::Eval),
+        _ => None,
+    };
+}
 
-pub static ENV: LazyLock<Mutex<BoxedData>> = LazyLock::new(|| Mutex::new(Data::nil()));
+pub static ENV: Lazy<RwLock<BoxedData>> = Lazy::new(|| RwLock::new(Data::nil()));
 
 impl Data {
     pub fn cons(car: BoxedData, cdr: BoxedData) -> BoxedData {
@@ -79,14 +78,11 @@ impl Data {
         Self::cons(Self::cons(a, b), env.clone())
     }
     pub fn prim(sym: &String) -> Option<BoxedData> {
-        let c = PRIM_TABLE.get(sym)?;
+        let c = to_prim(sym)?;
         Some(Arc::new(Data::Prim(c.clone())))
     }
     pub fn closure(param: BoxedData, body: BoxedData, env: BoxedData) -> BoxedData {
-        info!("closure");
-        info!("{param} {body} {env}");
-        let g_env = ENV.lock().unwrap();
-        info!("{g_env}");
+        let g_env = { ENV.read().clone() };
         let pair_env = if Self::equ(g_env.clone(), env.clone()) {
             Self::nil()
         } else {
@@ -99,10 +95,6 @@ impl Data {
         Arc::new(Data::Nil)
     }
     pub fn err() -> BoxedData {
-        info!("err");
-        if env::vars().any(|(x, _)| x == "ERR_PAN") {
-            panic!("err");
-        }
         Arc::new(Data::Error)
     }
     pub fn equ(a: BoxedData, b: BoxedData) -> bool {
@@ -130,8 +122,6 @@ impl Data {
         }
     }
     pub fn assoc(var: BoxedData, env: BoxedData) -> BoxedData {
-        info!("assoc {var}");
-        info!("{env}");
         let mut env = env.clone();
         while let Data::Cons(car, _) = env.as_ref() {
             if *Data::car(car.clone()) == *var {
@@ -142,8 +132,6 @@ impl Data {
         return Self::err();
     }
     pub fn eval(var: BoxedData, env: BoxedData) -> BoxedData {
-        info!("eval");
-        info!("{var} {env}");
         match var.deref() {
             Self::Atomic(_) => Self::assoc(var, env.clone()),
             // Self::Closure(car, cdr) => {
@@ -156,8 +144,6 @@ impl Data {
         }
     }
     pub fn apply(clos: BoxedData, param: BoxedData, env: BoxedData) -> BoxedData {
-        info!("apply");
-        info!("{clos} {param} {env}");
         match clos.deref() {
             Self::Prim(prim) => prim.eval(param, env),
             Self::Closure(_, _) => Self::reduce(clos, param, env),
@@ -165,8 +151,6 @@ impl Data {
         }
     }
     pub fn evlist(var: BoxedData, env: BoxedData) -> BoxedData {
-        info!("evlist");
-        info!("{var} {env}");
         match var.deref() {
             Self::Cons(car, cdr) => Self::cons(
                 Self::eval(car.clone(), env.clone()),
@@ -178,8 +162,6 @@ impl Data {
     }
 
     pub fn bind(param: BoxedData, values: BoxedData, env: BoxedData) -> BoxedData {
-        info!("bind");
-        info!("{param} {values} {env}");
         if Self::not(param.clone()) {
             env.clone()
         } else {
@@ -190,22 +172,19 @@ impl Data {
                     Self::pair(Self::car(param), Self::car(values), env),
                 )
             } else {
-                info!("{param} {values} {env}");
                 Self::pair(param, values, env)
             }
         }
     }
 
     pub fn reduce(clos: BoxedData, param: BoxedData, env: BoxedData) -> BoxedData {
-        info!("reduce");
-        info!("{clos} {param} {env}");
         let body = Self::cdr(Self::car(clos.clone()));
         let params = Self::car(Self::car(clos.clone()));
         let values = Self::evlist(param, env);
         let env = Self::bind(params, values, {
             if Self::not(Self::cdr(clos.clone())) {
-                let lock = ENV.lock().unwrap();
-                lock.clone()
+                let g_env = { ENV.read().clone() };
+                g_env
             } else {
                 Self::cdr(clos)
             }

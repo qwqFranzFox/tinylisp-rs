@@ -1,12 +1,10 @@
-use std::iter::Peekable;
-
-use log::debug;
-
+use crate::ports::Arc;
+use crate::ports::ToString;
 use crate::{
     tokenizer::{Token, Tokenizer},
     types::Data,
 };
-use std::sync::Arc;
+use core::iter::Peekable;
 
 pub struct Parser<'a> {
     tokens: Peekable<Tokenizer<'a>>,
