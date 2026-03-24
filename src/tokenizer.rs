@@ -1,5 +1,5 @@
+use crate::data::IntType;
 use crate::ports::{String, Vec, vec};
-use crate::types::IntType;
 use core::{iter::Peekable, str::Chars};
 
 pub struct Tokenizer<'a> {

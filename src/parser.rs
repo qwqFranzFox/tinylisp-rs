@@ -1,8 +1,8 @@
 use crate::ports::Arc;
 use crate::ports::ToString;
 use crate::{
+    data::Data,
     tokenizer::{Token, Tokenizer},
-    types::Data,
 };
 use core::iter::Peekable;
 

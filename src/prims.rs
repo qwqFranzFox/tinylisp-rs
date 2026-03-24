@@ -1,5 +1,5 @@
+use crate::data::{BoxedData, Data, ENV};
 use crate::ports::ToString;
-use crate::types::{BoxedData, Data, ENV};
 use core::ops::{Deref, DerefMut};
 
 #[derive(Clone, PartialEq, Eq, Debug)]
