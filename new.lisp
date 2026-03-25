@@ -1,3 +1,3 @@
-(+ 1 2)
+(blink (+ 1 2) 500)
 (define newfunc (lambda (a b) (+ a (- a b))))
-(newfunc 1 2)
+(blink (newfunc 1 2) 500)

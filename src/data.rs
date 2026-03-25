@@ -2,7 +2,7 @@ use crate::ports::Arc;
 use crate::ports::Lazy;
 use crate::ports::RwLock;
 use crate::ports::String;
-use crate::prims::Prims;
+use crate::prims::{Prims, to_prim};
 use core::fmt::Display;
 use core::ops::Deref;
 
@@ -43,23 +43,6 @@ impl Display for Data {
             Data::Error => write!(f, "err"),
         }
     }
-}
-
-fn to_prim(s: &str) -> Option<Prims> {
-    return match s {
-        "+" => Some(Prims::Add),
-        "-" => Some(Prims::Sub),
-        "*" => Some(Prims::Mul),
-        "/" => Some(Prims::Div),
-        "%" => Some(Prims::Mod),
-        "if" => Some(Prims::If),
-        "eq?" => Some(Prims::Eq),
-        "define" => Some(Prims::Define),
-        "lambda" => Some(Prims::Lambda),
-        "quote" => Some(Prims::Quote),
-        "eval" => Some(Prims::Eval),
-        _ => None,
-    };
 }
 
 pub static ENV: Lazy<RwLock<BoxedData>> = Lazy::new(|| RwLock::new(Data::nil()));

@@ -1,6 +1,5 @@
+use embedded_hal::delay::DelayNs;
 use rp235x_hal::{self as hal};
-
-// The led shines for x mills and waits for y mills
 
 const XTAL_FREQ_HZ: u32 = 12_000_000u32;
 
@@ -98,22 +97,18 @@ pub fn core1_main(sys_freq: u32) {
         let mut env = ENV.write();
         *env = Data::pair(tru.clone(), tru.clone(), Data::nil());
     };
-    let _timer = PeriWrap::get_timer1();
+    let mut timer = PeriWrap::get_timer1();
     for line in include_str!("../new.lisp").lines() {
         let env = { ENV.read().clone() };
         sio.fifo.write(2);
         sio.fifo.write(100);
         let _ = sio.fifo.read_blocking();
+        timer.delay_ms(500);
         let mut p = Parser::new(Tokenizer::new(line));
         let code = p.eval();
-        // info!("running: {}", code);
-        let result = Data::eval(code, env.clone());
-        if let Data::Number(num) = *result {
-            sio.fifo.write(num as u32);
-            sio.fifo.write(200);
-            let _ = sio.fifo.read_blocking();
-        }
-        // info!("{}", result);
-        // info!("Env is : {}", env);
+        let _result = Data::eval(code, env.clone());
+        sio.fifo.write(2);
+        sio.fifo.write(100);
+        let _ = sio.fifo.read_blocking();
     }
 }

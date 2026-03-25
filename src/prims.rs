@@ -1,4 +1,5 @@
 use crate::data::{BoxedData, Data, ENV};
+use crate::peri::PeriWrap;
 use crate::ports::ToString;
 use core::ops::{Deref, DerefMut};
 
@@ -15,6 +16,31 @@ pub enum Prims {
     Eq,
     Mod,
     Eval,
+    Blink,
+    Car,
+    Cdr,
+    List,
+}
+
+pub fn to_prim(s: &str) -> Option<Prims> {
+    return match s {
+        "+" => Some(Prims::Add),
+        "-" => Some(Prims::Sub),
+        "*" => Some(Prims::Mul),
+        "/" => Some(Prims::Div),
+        "%" => Some(Prims::Mod),
+        "if" => Some(Prims::If),
+        "eq?" => Some(Prims::Eq),
+        "define" => Some(Prims::Define),
+        "lambda" => Some(Prims::Lambda),
+        "quote" => Some(Prims::Quote),
+        "eval" => Some(Prims::Eval),
+        "blink" => Some(Prims::Blink),
+        "car" => Some(Prims::Car),
+        "cdr" => Some(Prims::Cdr),
+        "list" => Some(Prims::List),
+        _ => None,
+    };
 }
 
 impl Prims {
@@ -31,6 +57,10 @@ impl Prims {
             Prims::Eq => Self::equ(a, env),
             Prims::Mod => Self::mod_(a, env),
             Prims::Eval => Self::ev(a, env),
+            Prims::Blink => Self::blink(a, env),
+            Prims::Car => Self::car(a, env),
+            Prims::Cdr => Self::cdr(a, env),
+            Prims::List => Self::list(a, env),
         }
     }
 
@@ -142,7 +172,43 @@ impl Prims {
             Data::eval(op2, env)
         }
     }
+
     fn ev(a: BoxedData, env: BoxedData) -> BoxedData {
         return Data::eval(a, env);
+    }
+
+    fn blink(a: BoxedData, env: BoxedData) -> BoxedData {
+        let op1 = Data::eval(Data::car(a.clone()), env.clone());
+        let op2 = Data::eval(Data::car(Data::cdr(a.clone())), env);
+        if let Data::Number(times) = *op1
+            && let Data::Number(delay_ms) = *op2
+        {
+            assert!(times >= 0);
+            assert!(delay_ms > 0);
+            let mut sio = PeriWrap::get_sio();
+            sio.fifo.write(times as u32);
+            sio.fifo.write(delay_ms as u32);
+            let _ = sio.fifo.read_blocking();
+            return Data::nil();
+        } else {
+            return Data::err();
+        }
+    }
+
+    fn car(a: BoxedData, env: BoxedData) -> BoxedData {
+        return Data::car(Data::eval(a, env));
+    }
+
+    fn cdr(a: BoxedData, env: BoxedData) -> BoxedData {
+        return Data::cdr(Data::eval(a, env));
+    }
+
+    fn list(a: BoxedData, env: BoxedData) -> BoxedData {
+        if Data::equ(a.clone(), Data::nil()) {
+            return a;
+        } else {
+            let op1 = Data::car(a.clone());
+            return Data::cons(Data::eval(op1, env.clone()), Self::list(Data::cdr(a), env));
+        }
     }
 }
