@@ -1,7 +1,7 @@
 use crate::data::{BoxedData, Data, ENV};
 use crate::peri::PeriWrap;
 use crate::ports::ToString;
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Prims {
@@ -28,7 +28,7 @@ pub fn to_prim(s: &str) -> Option<Prims> {
         "-" => Some(Prims::Sub),
         "*" => Some(Prims::Mul),
         "/" => Some(Prims::Div),
-        "%" => Some(Prims::Mod),
+        "mod" => Some(Prims::Mod),
         "if" => Some(Prims::If),
         "eq?" => Some(Prims::Eq),
         "define" => Some(Prims::Define),
@@ -133,9 +133,12 @@ impl Prims {
         let op1 = Data::car(a.clone());
         let op2 = Data::car(Data::cdr(a.clone()));
         let result = Data::eval(op2.clone(), env.clone());
-        let mut global_env = ENV.write();
-        let global_env = global_env.deref_mut();
-        *global_env = Data::pair(op1.clone(), result, global_env.clone());
+        let global_env = ENV.read().clone();
+        let result = Data::pair(op1.clone(), result, global_env.clone());
+        {
+            let mut global_env = ENV.write();
+            *global_env = result;
+        }
         return op1;
     }
 

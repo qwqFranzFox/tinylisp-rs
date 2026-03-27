@@ -5,10 +5,15 @@ edition = "2024"
 
 [dependencies]
 alloc-cortex-m = "0.4.4"
+cortex-m = "0.7.7"
+cortex-m-rt = "0.7.5"
 defmt = "1.0.1"
 defmt-rtt = "1.1.0"
 embedded-hal = "1.0.0"
 embedded-io = "0.7.1"
+heapless = "0.9.2"
 panic-halt = "1.0.0"
 rp235x-hal = { version = "0.4.0", features = ["rt", "defmt", "critical-section-impl", "binary-info"] }
 spin = "0.10.0"
+usb-device = "0.3.2"
+usbd-serial = "0.2.2"

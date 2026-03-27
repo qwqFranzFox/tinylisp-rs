@@ -4,7 +4,6 @@ use crate::ports::RwLock;
 use crate::ports::String;
 use crate::prims::{Prims, to_prim};
 use core::fmt::Display;
-use core::ops::Deref;
 
 pub type IntType = isize;
 
@@ -115,27 +114,27 @@ impl Data {
         return Self::err();
     }
     pub fn eval(var: BoxedData, env: BoxedData) -> BoxedData {
-        match var.deref() {
+        match *var {
             Self::Atomic(_) => Self::assoc(var, env.clone()),
             // Self::Closure(car, cdr) => {
             //     Self::apply(Self::eval(car.clone(), env.clone()), cdr.clone(), env)
             // }
-            Self::Cons(car, cdr) => {
+            Self::Cons(ref car, ref cdr) => {
                 Self::apply(Self::eval(car.clone(), env.clone()), cdr.clone(), env)
             }
             _ => var,
         }
     }
     pub fn apply(clos: BoxedData, param: BoxedData, env: BoxedData) -> BoxedData {
-        match clos.deref() {
-            Self::Prim(prim) => prim.eval(param, env),
+        match *clos {
+            Self::Prim(ref prim) => prim.eval(param, env),
             Self::Closure(_, _) => Self::reduce(clos, param, env),
             _ => Self::err(),
         }
     }
     pub fn evlist(var: BoxedData, env: BoxedData) -> BoxedData {
-        match var.deref() {
-            Self::Cons(car, cdr) => Self::cons(
+        match *var {
+            Self::Cons(ref car, ref cdr) => Self::cons(
                 Self::eval(car.clone(), env.clone()),
                 Self::evlist(cdr.clone(), env),
             ),
@@ -148,7 +147,7 @@ impl Data {
         if Self::not(param.clone()) {
             env.clone()
         } else {
-            if let Data::Cons(_, _) = param.deref() {
+            if let Data::Cons(_, _) = *param {
                 Self::bind(
                     Self::cdr(param.clone()),
                     Self::cdr(values.clone()),
