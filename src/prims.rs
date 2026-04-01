@@ -55,7 +55,7 @@ impl Prims {
             Prims::Quote => Self::quote(a, env),
             Prims::If => Self::if_(a, env),
             Prims::Eq => Self::equ(a, env),
-            Prims::Mod => Self::mod_(a, env),
+            Prims::Mod => Self::modular(a, env),
             Prims::Eval => Self::ev(a, env),
             Prims::Blink => Self::blink(a, env),
             Prims::Car => Self::car(a, env),
@@ -110,13 +110,13 @@ impl Prims {
             Data::eval(op1, env.clone()).deref(),
             Data::eval(op2, env).deref(),
         ) {
-            Data::number(num1 * num2)
+            Data::number(num1 / num2)
         } else {
             Data::err()
         }
     }
 
-    fn mod_(a: BoxedData, env: BoxedData) -> BoxedData {
+    fn modular(a: BoxedData, env: BoxedData) -> BoxedData {
         let op1 = Data::car(a.clone());
         let op2 = Data::car(Data::cdr(a.clone()));
         if let (Data::Number(num1), Data::Number(num2)) = (
@@ -180,22 +180,15 @@ impl Prims {
         return Data::eval(a, env);
     }
 
-    fn blink(a: BoxedData, env: BoxedData) -> BoxedData {
-        let op1 = Data::eval(Data::car(a.clone()), env.clone());
-        let op2 = Data::eval(Data::car(Data::cdr(a.clone())), env);
-        if let Data::Number(times) = *op1
-            && let Data::Number(delay_ms) = *op2
-        {
-            assert!(times >= 0);
-            assert!(delay_ms > 0);
-            let mut sio = PeriWrap::get_sio();
-            sio.fifo.write(times as u32);
-            sio.fifo.write(delay_ms as u32);
-            let _ = sio.fifo.read_blocking();
-            return Data::nil();
-        } else {
-            return Data::err();
-        }
+    fn blink(_a: BoxedData, _env: BoxedData) -> BoxedData {
+        // TODO: need to reconsider the implemetation of this primitive.
+        // As the problems occured in previous development, delays are usually bad
+        // for the repl loop and the usb poll loop.
+        // Current imagine: use the hardware timer and a queue. The queue contains
+        // blint events, and each time the timer interrupt arrives, if the queue
+        // was not empty, the handler will set a new timer based on the
+        // subsequent event.
+        return Data::err();
     }
 
     fn car(a: BoxedData, env: BoxedData) -> BoxedData {
