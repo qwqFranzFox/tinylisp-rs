@@ -215,7 +215,7 @@ pub fn core1_main(
         }
         if result_read.ready() {
             let result = result_read.dequeue().unwrap();
-            let _ = serial.write(format!("Result:\r\n{result}\r\n").as_bytes());
+            let _ = serial.write(format!("{result}\r\n").as_bytes());
             newline = true;
         }
     }

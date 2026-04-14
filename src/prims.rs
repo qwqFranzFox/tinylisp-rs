@@ -1,5 +1,4 @@
 use crate::data::{BoxedData, Data, ENV};
-use crate::peri::PeriWrap;
 use crate::ports::ToString;
 use core::ops::Deref;
 
@@ -185,7 +184,7 @@ impl Prims {
         // As the problems occured in previous development, delays are usually bad
         // for the repl loop and the usb poll loop.
         // Current imagine: use the hardware timer and a queue. The queue contains
-        // blint events, and each time the timer interrupt arrives, if the queue
+        // blink events, and each time the timer interrupt arrives, if the queue
         // was not empty, the handler will set a new timer based on the
         // subsequent event.
         return Data::err();

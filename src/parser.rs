@@ -1,7 +1,6 @@
-use crate::ports::Arc;
 use crate::ports::ToString;
 use crate::{
-    data::Data,
+    data::{BoxedData, Data},
     tokenizer::{Token, Tokenizer},
 };
 use core::iter::Peekable;
@@ -16,10 +15,10 @@ impl<'a> Parser<'a> {
             tokens: tokens.peekable(),
         }
     }
-    pub fn eval(&mut self) -> Arc<Data> {
-        Self::parse(&mut self.tokens).unwrap_or_else(Data::err)
+    pub fn parse(&mut self) -> Option<BoxedData> {
+        Self::parse_loop(&mut self.tokens)
     }
-    fn parse(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn parse_loop(tokens: &mut Peekable<Tokenizer>) -> Option<BoxedData> {
         if let Some(token) = tokens.peek() {
             match token {
                 Token::Symbol(sym) => {
@@ -39,14 +38,14 @@ impl<'a> Parser<'a> {
             None
         }
     }
-    fn quote(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn quote(tokens: &mut Peekable<Tokenizer>) -> Option<BoxedData> {
         tokens.next()?;
         return Some(Data::cons(
             Data::atom(&"quote".to_string()),
-            Data::cons(Self::parse(tokens)?, Data::nil()),
+            Data::cons(Self::parse_loop(tokens)?, Data::nil()),
         ));
     }
-    fn list(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn list(tokens: &mut Peekable<Tokenizer>) -> Option<BoxedData> {
         let peek = tokens.peek()?;
         match peek {
             Token::RBrace => {
@@ -56,25 +55,32 @@ impl<'a> Parser<'a> {
             Token::Symbol(sym) => {
                 if sym == "." {
                     tokens.next()?;
-                    let x = Self::parse(tokens);
+                    let x = Self::parse_loop(tokens);
                     // tokens.next();
                     x
                 } else {
-                    let car = Self::parse(tokens)?;
+                    let car = Self::parse_loop(tokens)?;
                     Some(Data::cons(car, Self::list(tokens)?))
                 }
             }
             _ => {
-                let car = Self::parse(tokens)?;
+                let car = Self::parse_loop(tokens)?;
                 Some(Data::cons(car, Self::list(tokens)?))
             }
         }
     }
-    fn atomic(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn atomic(tokens: &mut Peekable<Tokenizer>) -> Option<BoxedData> {
         match tokens.next()? {
             Token::Symbol(sym) => Data::prim(&sym).or_else(|| Some(Data::atom(&sym))),
             Token::Number(num) => Some(Data::number(num)),
             _ => None,
         }
+    }
+}
+
+impl<'a> Iterator for Parser<'a> {
+    type Item = BoxedData;
+    fn next(&mut self) -> Option<Self::Item> {
+        return self.parse();
     }
 }
