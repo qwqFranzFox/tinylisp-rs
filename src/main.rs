@@ -9,7 +9,6 @@ mod prims;
 mod tokenizer;
 
 use crate::peri::PeriWrap;
-use crate::ports::ToString;
 use alloc::format;
 use alloc::string::String;
 use alloc_cortex_m::CortexMHeap as Heap;
@@ -17,7 +16,7 @@ use hal::entry;
 use panic_halt as _;
 use rp235x_hal::{self as hal};
 
-use crate::data::{Data, ENV};
+use crate::data::Lisp;
 use crate::parser::Parser;
 use crate::tokenizer::Tokenizer;
 
@@ -48,17 +47,17 @@ fn main() -> ! {
 
     PeriWrap::init_core1(next_write, res_read);
 
+    let mut lisp = Lisp::new();
     {
         // run init and prelude
-        let tru = Data::atom(&"#t".to_string());
-        {
-            let mut env = ENV.write();
-            *env = Data::pair(tru.clone(), tru.clone(), Data::nil());
-        };
         let parser = Parser::new(Tokenizer::new(include_str!("../prelude.lisp")));
-        for code in parser {
-            let env = { ENV.read().clone() };
-            let _result = Data::eval(code, env);
+        let iter = parser.chain_eval(&mut lisp);
+        let results: alloc::vec::Vec<_> = iter.collect();
+        for result in results {
+            let _ = res_write.enqueue(format!(
+                ">>> Result: {}",
+                result.debug(lisp.get_context_mut())
+            ));
         }
     }
 
@@ -66,11 +65,11 @@ fn main() -> ! {
         if next_read.ready() {
             let block = next_read.dequeue().unwrap();
             let parser = Parser::new(Tokenizer::new(block.as_str()));
-            for code in parser {
-                let env = { ENV.read().clone() };
-                let _ = res_write.enqueue(format!("Code: {code}"));
-                let result = Data::eval(code, env);
-                let _ = res_write.enqueue(format!("Result {result}"));
+            let iter = parser.chain_eval(&mut lisp);
+            let results: alloc::vec::Vec<_> = iter.collect();
+            for result in results {
+                let _ =
+                    res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
             }
         }
     }

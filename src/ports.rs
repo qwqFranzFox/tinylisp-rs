@@ -1,11 +1,8 @@
 extern crate alloc;
 pub use alloc::string::String;
 pub use alloc::string::ToString;
-pub use alloc::sync::Arc;
 pub use alloc::vec;
 pub use alloc::vec::Vec;
-pub use spin::Lazy;
-pub use spin::RwLock;
 
 use rp235x_hal as hal;
 #[unsafe(link_section = ".start_block")]
