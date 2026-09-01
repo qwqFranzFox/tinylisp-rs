@@ -2,7 +2,7 @@ use crate::{data::Lisp, parser::Parser, tokenizer::Tokenizer};
 
 mod data;
 mod parser;
-mod prims_new;
+mod prims;
 mod tokenizer;
 
 fn main() {

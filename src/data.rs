@@ -1,10 +1,8 @@
-// use crate::ports::String;
-use crate::prims_new::Prims;
-use crate::prims_new::to_prim;
+use crate::prims::Prims;
+use crate::prims::to_prim;
+use slotmap::{self, SlotMap};
 use std::fmt::Display;
 use std::fmt::Formatter;
-// use alloc::string::ToString;
-use slotmap::{self, SlotMap};
 
 pub type IntType = isize;
 
@@ -191,8 +189,8 @@ impl Data {
             map: &context.alloc,
         }
     }
-    pub fn dump(self, context: &'_ LispContext, message: &'_ str) -> Data {
-        // println!("{}: {}", message, self.clone().debug(context));
+    pub fn dump(self, _context: &'_ LispContext, _message: &'_ str) -> Data {
+        // println!("{}: {}", _message, self.clone().debug(_context));
         self
     }
 }
