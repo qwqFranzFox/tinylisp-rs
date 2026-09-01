@@ -1,12 +1,8 @@
-use std::iter::Peekable;
-
-use log::debug;
-
 use crate::{
+    data_new::{Data, LispContext},
     tokenizer::{Token, Tokenizer},
-    types::Data,
 };
-use std::sync::Arc;
+use std::iter::Peekable;
 
 pub struct Parser<'a> {
     tokens: Peekable<Tokenizer<'a>>,
@@ -18,64 +14,66 @@ impl<'a> Parser<'a> {
             tokens: tokens.peekable(),
         }
     }
-    pub fn eval(&mut self) -> Arc<Data> {
-        Self::parse(&mut self.tokens).unwrap_or_else(Data::err)
+    pub fn eval(&mut self, context: &mut LispContext) -> Data {
+        Self::parse(context, &mut self.tokens).unwrap_or(context.get_err())
     }
-    fn parse(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn parse(context: &mut LispContext, tokens: &mut Peekable<Tokenizer>) -> Option<Data> {
         if let Some(token) = tokens.peek() {
             match token {
                 Token::Symbol(sym) => {
                     if sym == "\'" {
-                        Self::quote(tokens)
+                        Self::quote(context, tokens)
                     } else {
-                        Self::atomic(tokens)
+                        Self::atomic(context, tokens)
                     }
                 }
                 Token::LBrace => {
                     tokens.next();
-                    Self::list(tokens)
+                    Self::list(context, tokens)
                 }
-                _ => Self::atomic(tokens),
+                _ => Self::atomic(context, tokens),
             }
         } else {
             None
         }
     }
-    fn quote(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn quote(context: &mut LispContext, tokens: &mut Peekable<Tokenizer>) -> Option<Data> {
         tokens.next()?;
-        return Some(Data::cons(
-            Data::atom(&"quote".to_string()),
-            Data::cons(Self::parse(tokens)?, Data::nil()),
-        ));
+        let atom = context.atom(&"quote".to_string());
+        let parse = Self::parse(context, tokens)?;
+        let cons = context.cons(parse, context.nil());
+        return Some(context.cons(atom, cons));
     }
-    fn list(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn list(context: &mut LispContext, tokens: &mut Peekable<Tokenizer>) -> Option<Data> {
         let peek = tokens.peek()?;
         match peek {
             Token::RBrace => {
                 tokens.next()?;
-                Some(Data::nil())
+                Some(context.nil())
             }
             Token::Symbol(sym) => {
                 if sym == "." {
                     tokens.next()?;
-                    let x = Self::parse(tokens);
+                    let x = Self::parse(context, tokens);
                     // tokens.next();
                     x
                 } else {
-                    let car = Self::parse(tokens)?;
-                    Some(Data::cons(car, Self::list(tokens)?))
+                    let car = Self::parse(context, tokens)?;
+                    let cdr = Self::list(context, tokens)?;
+                    Some(context.cons(car, cdr))
                 }
             }
             _ => {
-                let car = Self::parse(tokens)?;
-                Some(Data::cons(car, Self::list(tokens)?))
+                let car = Self::parse(context, tokens)?;
+                let cdr = Self::list(context, tokens)?;
+                Some(context.cons(car, cdr))
             }
         }
     }
-    fn atomic(tokens: &mut Peekable<Tokenizer>) -> Option<Arc<Data>> {
+    fn atomic(context: &mut LispContext, tokens: &mut Peekable<Tokenizer>) -> Option<Data> {
         match tokens.next()? {
-            Token::Symbol(sym) => Data::prim(&sym).or_else(|| Some(Data::atom(&sym))),
-            Token::Number(num) => Some(Data::number(num)),
+            Token::Symbol(sym) => context.prim(&sym).or_else(|| Some(context.atom(&sym))),
+            Token::Number(num) => Some(context.number(num)),
             _ => None,
         }
     }

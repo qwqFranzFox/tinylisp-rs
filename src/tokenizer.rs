@@ -1,6 +1,6 @@
 use std::{iter::Peekable, str::Chars, vec};
 
-use crate::types::IntType;
+use crate::data_new::IntType;
 
 pub struct Tokenizer<'a> {
     iter: Peekable<Chars<'a>>,

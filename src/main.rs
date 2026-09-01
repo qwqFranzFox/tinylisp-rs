@@ -1,27 +1,23 @@
-use crate::{
-    parser::Parser,
-    tokenizer::Tokenizer,
-    types::{Data, ENV},
-};
+use crate::{data::Lisp, parser::Parser, tokenizer::Tokenizer};
 
+mod data;
 mod parser;
-mod prims;
+mod prims_new;
 mod tokenizer;
-mod types;
 
 fn main() {
     env_logger::builder().init();
-    let tru = Data::atom(&"#t".to_string());
-    {
-        let mut env = ENV.lock().unwrap();
-        *env = Data::pair(tru.clone(), tru.clone(), Data::nil());
-    };
+    let mut lisp = Lisp::new();
     for line in include_str!("../new.lisp").lines() {
-        let env = { ENV.lock().unwrap().clone() };
         let mut p = Parser::new(Tokenizer::new(line));
-        let code = p.eval();
-        println!("running: {code}");
-        println!("{}", Data::eval(code, env.clone()));
-        println!("Env is : {env}");
+        let code = p.eval(lisp.get_context_mut());
+        let result = lisp.eval(code);
+        println!(">>> Result: {}", result.debug(lisp.get_context_mut()));
+        // println!(
+        //     ">>> env: {}",
+        //     lisp.get_context_mut()
+        //         .get_env()
+        //         .debug(lisp.get_context_mut())
+        // )
     }
 }
