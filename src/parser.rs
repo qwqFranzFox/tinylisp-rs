@@ -15,8 +15,8 @@ impl<'a> Parser<'a> {
             tokens: tokens.peekable(),
         }
     }
-    pub fn eval(&mut self, context: &mut LispContext) -> Option<Data> {
-        Self::parse(context, &mut self.tokens)
+    pub fn eval(&mut self, context: &mut LispContext) -> Data {
+        Self::parse(context, &mut self.tokens).unwrap_or(context.err())
     }
     fn parse(context: &mut LispContext, tokens: &mut Peekable<Tokenizer>) -> Option<Data> {
         if let Some(token) = tokens.peek() {
@@ -80,21 +80,35 @@ impl<'a> Parser<'a> {
     }
 
     pub fn chain_eval(self, lisp: &'a mut Lisp) -> ParserIter<'a> {
-        ParserIter { parser: self, lisp }
+        ParserIter {
+            parser: self,
+            lisp,
+            err: false,
+        }
     }
 }
 
 pub struct ParserIter<'a> {
     parser: Parser<'a>,
     lisp: &'a mut Lisp,
+    err: bool,
 }
 
 impl<'a> Iterator for ParserIter<'a> {
     type Item = Data;
     fn next(&mut self) -> Option<Self::Item> {
-        self.parser
-            .eval(self.lisp.get_context_mut())
-            .and_then(|code| Some(self.lisp.eval(code)))
-            .or(Some(self.lisp.get_context_mut().err()))
+        if self.err {
+            return None;
+        } else {
+            let code = self.parser.eval(self.lisp.get_context_mut());
+            if code != self.lisp.get_context_mut().err() {
+                let result = self.lisp.eval(code);
+                if result != self.lisp.get_context_mut().err() {
+                    return Some(result);
+                }
+            }
+        }
+        self.err = true;
+        Some(self.lisp.get_context_mut().err())
     }
 }

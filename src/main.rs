@@ -12,6 +12,7 @@ use crate::peri::PeriWrap;
 use alloc::format;
 use alloc::string::String;
 use alloc_cortex_m::CortexMHeap as Heap;
+use embedded_hal::digital::OutputPin;
 use hal::entry;
 use panic_halt as _;
 use rp235x_hal::{self as hal};
@@ -40,37 +41,45 @@ fn main() -> ! {
 
     let mut _sio = PeriWrap::get_sio();
     let mut _timer = PeriWrap::get_timer0();
+    let mut a = PeriWrap::get_pins().gpio25.into_push_pull_output();
     #[allow(static_mut_refs)]
     let (mut res_write, res_read) = unsafe { RESULT.split() };
     #[allow(static_mut_refs)]
     let (next_write, mut next_read) = unsafe { NEXT_LINE.split() };
 
     PeriWrap::init_core1(next_write, res_read);
-
     let mut lisp = Lisp::new();
+
     {
         // run init and prelude
         let parser = Parser::new(Tokenizer::new(include_str!("../prelude.lisp")));
+        // a.set_high();
         let iter = parser.chain_eval(&mut lisp);
         let results: alloc::vec::Vec<_> = iter.collect();
-        for result in results {
-            let _ = res_write.enqueue(format!(
-                ">>> Result: {}",
-                result.debug(lisp.get_context_mut())
-            ));
-        }
+        // BUG:: Writing to serial before connection cause crash
+        // for result in results {
+        //     let _ = res_write.enqueue(format!(
+        //         ">>> Result: {}",
+        //         result.debug(lisp.get_context_mut())
+        //     ));
+        // }
     }
 
     loop {
         if next_read.ready() {
+            a.set_high();
             let block = next_read.dequeue().unwrap();
-            let parser = Parser::new(Tokenizer::new(block.as_str()));
-            let iter = parser.chain_eval(&mut lisp);
-            let results: alloc::vec::Vec<_> = iter.collect();
-            for result in results {
-                let _ =
-                    res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
-            }
+            let mut parser = Parser::new(Tokenizer::new(block.as_str()));
+            let code = parser.eval(lisp.get_context_mut());
+            // a.set_low();
+            let result = lisp.eval(code);
+            let _ = res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
+
+            // let results: alloc::vec::Vec<_> = iter.collect();
+            // for result in results {
+            //     let _ =
+            //         res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
+            // }
         }
     }
 }
