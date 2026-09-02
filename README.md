@@ -16,8 +16,9 @@
 - 支持变量绑定、函数定义与调用、基础列表操作（如 `car`、`cdr`、`cons`）
 - (Pico 2 Only)使用双核架构：一个核处理串口 I/O，另一个核执行 Eval-Apply 循环，避免输入输出阻塞解释器
 - 模块化设计，核心解释器与硬件相关代码解耦，可在宿主机上单独测试
-- 已成功迁移至 ESP32-C6，验证了可移植性
+- 已成功迁移至 [ESP32-C6](https://github.com/qwqFranzFox/tinylisp-esp32c6)，验证了可移植性
 
+> ESP32C6移植使用官方脚手架创建新项目，因此和主线不在同一仓库。
 ---
 
 ## 🛠 硬件支持
@@ -25,7 +26,7 @@
 | 开发板 | 状态 | 备注 |
 |--------|------|------|
 | Raspberry Pi Pico 2 | ✅ 已运行 | 主要开发平台，使用 rpi-hal |
-| ESP32-C6 | ✅ 已迁移 | 通过 esp-hal 适配，验证跨平台能力 |
+| [ESP32-C6](https://github.com/qwqFranzFox/tinylisp-esp32c6) | ✅ 已迁移 | 通过 esp-hal 适配，验证跨平台能力 |
 
 ---
 
