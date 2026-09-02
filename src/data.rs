@@ -43,9 +43,6 @@ impl LispContext {
     pub fn get_tru(&self) -> Data {
         self.tru
     }
-    pub fn get_err(&self) -> Data {
-        self.err
-    }
 
     pub fn cons(&mut self, car: Data, cdr: Data) -> Data {
         self.alloc.insert(DataImpl::Cons(car, cdr))
