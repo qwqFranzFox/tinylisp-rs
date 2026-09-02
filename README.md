@@ -36,8 +36,13 @@
 - 串口工具，如 `minicom`、`screen` 或 `picocom`
 
 ## 路线图
-- [] 增加更多内置函数（如 map、filter、apply）
-- [] 支持简单的宏系统
+- [ ] 增加更多内置函数（如 map、filter、apply）
+- [ ] 支持简单的宏系统
 - [x] 优化内存分配策略，支持更大的 Lisp 对象
 - [x] 提供一个宿主机版本，方便调试和教学演示
-- [] 添加更完整的错误报告和行号信息
+- [ ] 添加更完整的错误报告和行号信息
+
+## 致谢
+本项目的研究动力来源于MIT的[SICP](https://web.mit.edu/6.001/6.037/)课程，以及我先前翻译的潘润宇老师的一篇论文 "Predictable Virtualization on Memory Protection Unit-based Microcontrollers"（[原文](https://ieeexplore.ieee.org/document/8430066)及[个人翻译的typst源代码](https://github.com/qwqFranzFox/pan18mpu-translate)）
+
+核心部分的元循环求值器参考了[tinylisp](https://github.com/Robert-van-Engelen/tinylisp)。
