@@ -1,9 +1,43 @@
-# Tinylisp-rs
+# tinylisp-rs
 
-A tiny LISP interpreter running on Raspberry Pi Pico 2, based on [Robert-van-Engelen/tinylisp](https://github.com/Robert-van-Engelen/tinylisp). Written in Rust.
+基于 Rust 与树莓派 Pico2 的嵌入式 Lisp 解释器。
 
-This project is a learning project. It includes most of the basic primitives of McCarthy's LISP and some Scheme's feature. Currently it does not support reading and parsing in stream, and can only interpret one line of code at a time. A `prelude.lisp` is loaded before reading input from USB serial port.
+在资源受限的微控制器上实现一个可交互的 Lisp REPL，通过串口与用户交互，探索 `no_std` 环境下的语言运行时设计。
 
-The file `memory.x` and parts of `.cargo/config.toml` are from [rp235x-hal](https://github.com/rp-rs/rp-hal)'s example repo.
+> 当前支持硬件：树莓派 Pico 2、ESP32-C6  
+> 项目状态：个人项目，持续完善中
 
-The idea Also, coincidentally, a few weeks after I started the project, I found [MIT's SICP](https://ocw.mit.edu/courses/6-001-structure-and-interpretation-of-computer-programs-spring-2005/) course and was suprised by is clean philosophy of software engineering. (Sadly the course hasn't beed lectured since 2005, and the videos I found was recorded in 1986. Wish the course will be re-lectured like the Missing Semester.) I've bought some embedded devices last winter, so after I finished the overall strcuture of the project, I wondered if I can run LISP on this micro-controller like, for example, Lua or MuJS.
+---
+
+## ✨ 特性
+
+- 完整的 REPL 交互循环，支持通过串口输入表达式并查看求值结果
+- 独立实现的词法分析器、Eval-Apply元循环求值器
+- 支持变量绑定、函数定义与调用、基础列表操作（如 `car`、`cdr`、`cons`）
+- (Pico 2 Only)使用双核架构：一个核处理串口 I/O，另一个核执行 Eval-Apply 循环，避免输入输出阻塞解释器
+- 模块化设计，核心解释器与硬件相关代码解耦，可在宿主机上单独测试
+- 已成功迁移至 ESP32-C6，验证了可移植性
+
+---
+
+## 🛠 硬件支持
+
+| 开发板 | 状态 | 备注 |
+|--------|------|------|
+| Raspberry Pi Pico 2 | ✅ 已运行 | 主要开发平台，使用 rpi-hal |
+| ESP32-C6 | ✅ 已迁移 | 通过 esp-hal 适配，验证跨平台能力 |
+
+---
+
+## 环境要求
+
+- Rust 工具链
+- 目标平台支持：`thumbv8m.main-none-eabihf`（Pico 2）或 `riscv32imac-unknown-none-elf`（ESP32-C6）
+- 串口工具，如 `minicom`、`screen` 或 `picocom`
+
+## 路线图
+- [] 增加更多内置函数（如 map、filter、apply）
+- [] 支持简单的宏系统
+- [x] 优化内存分配策略，支持更大的 Lisp 对象
+- [x] 提供一个宿主机版本，方便调试和教学演示
+- [] 添加更完整的错误报告和行号信息
