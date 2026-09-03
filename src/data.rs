@@ -52,25 +52,20 @@ impl LispContext {
     pub fn number(&mut self, num: IntType) -> Data {
         self.alloc.insert(DataImpl::Number(num))
     }
-    pub fn atom(&mut self, sym: &String) -> Data {
-        self.alloc.insert(DataImpl::Atomic(sym.clone()))
+    pub fn atom(&mut self, sym: &str) -> Data {
+        self.alloc.insert(DataImpl::Atomic(sym.to_string()))
     }
     pub fn pair(&mut self, a: Data, b: Data, env: Data) -> Data {
         let _a = self.cons(a, b);
         self.cons(_a, env)
     }
-    pub fn prim(&mut self, sym: &String) -> Option<Data> {
+    pub fn prim(&mut self, sym: &str) -> Option<Data> {
         let c = to_prim(sym)?;
-        Some(self.alloc.insert(DataImpl::Prim(c.clone())))
+        Some(self.alloc.insert(DataImpl::Prim(c)))
     }
     pub fn closure(&mut self, param: Data, body: Data, env: Data) -> Data {
-        let g_env = self.env;
-        let pair_env = if g_env == env {
-            self.nil()
-        } else {
-            env.clone()
-        };
-        self.pair(param.clone(), body.clone(), pair_env.clone());
+        let pair_env = if self.env == env { self.nil() } else { env };
+        self.pair(param, body, pair_env);
         let new = self.cons(param, body);
         self.alloc.insert(DataImpl::Closure(new, pair_env))
     }
@@ -90,9 +85,9 @@ impl LispContext {
     pub fn car(&self, a: Data) -> Data {
         let a_impl = self.get_impl(a).unwrap();
         if let DataImpl::Cons(car, _) = a_impl {
-            car.clone()
+            car
         } else if let DataImpl::Closure(car, _) = a_impl {
-            car.clone()
+            car
         } else {
             self.err
         }
@@ -100,33 +95,33 @@ impl LispContext {
     pub fn cdr(&self, a: Data) -> Data {
         let a_impl = self.get_impl(a).unwrap();
         if let DataImpl::Cons(_, cdr) = a_impl {
-            cdr.clone()
+            cdr
         } else if let DataImpl::Closure(_, cdr) = a_impl {
-            cdr.clone()
+            cdr
         } else {
             self.err
         }
     }
     fn assoc(&mut self, var: Data, env: Data) -> Data {
-        let mut env = env.clone();
+        let mut env = env;
         while let DataImpl::Cons(car, _) = self.get_impl(env).unwrap() {
-            if self.get_impl(self.car(car.clone())) == self.get_impl(var) {
+            if self.get_impl(self.car(car)) == self.get_impl(var) {
                 var.dump(self, "found match");
-                self.car(car.clone()).dump(self, "matching content");
+                self.car(car).dump(self, "matching content");
                 return self.cdr(car);
             }
             env = self.cdr(env);
         }
-        return self.err;
+        self.err
     }
     pub fn eval(&mut self, var: Data, env: Data) -> Data {
         var.dump(self, "evaluating");
         env.dump(self, "env");
         match self.get_impl(var).unwrap() {
-            DataImpl::Atomic(_) => self.assoc(var, env.clone()),
+            DataImpl::Atomic(_) => self.assoc(var, env),
             DataImpl::Cons(car, cdr) => {
-                let eval_result = self.eval(car.clone(), env.clone());
-                self.apply(eval_result, cdr.clone(), env)
+                let eval_result = self.eval(car, env);
+                self.apply(eval_result, cdr, env)
             }
             _ => var,
         }
@@ -143,8 +138,8 @@ impl LispContext {
         let value = self.get_impl(var).unwrap();
         match value {
             DataImpl::Cons(car, cdr) => {
-                let eval_res = self.eval(car.clone(), env.clone());
-                let evlist_res = self.evlist(cdr.clone(), env);
+                let eval_res = self.eval(car, env);
+                let evlist_res = self.evlist(cdr, env);
                 self.cons(eval_res, evlist_res)
             }
             DataImpl::Atomic(_) => self.assoc(var, env),
@@ -152,12 +147,12 @@ impl LispContext {
         }
     }
     fn bind(&mut self, param: Data, values: Data, env: Data) -> Data {
-        if self.not(param.clone()) {
-            env.clone()
+        if self.not(param) {
+            env
         } else {
             if let DataImpl::Cons(_, _) = self.get_impl(param).unwrap() {
                 let pair = self.pair(self.car(param), self.car(values), env);
-                self.bind(self.cdr(param.clone()), self.cdr(values.clone()), pair)
+                self.bind(self.cdr(param), self.cdr(values), pair)
             } else {
                 self.pair(param, values, env)
             }
@@ -167,13 +162,12 @@ impl LispContext {
         clos.dump(self, "reduce: clos");
         param.dump(self, "reduce: param");
         env.dump(self, "reduce: env");
-        let body = self.cdr(self.car(clos.clone()));
-        let params = self.car(self.car(clos.clone()));
+        let body = self.cdr(self.car(clos));
+        let params = self.car(self.car(clos));
         let values = self.evlist(param, env);
         let env = self.bind(params, values, {
-            if self.not(self.cdr(clos.clone())) {
-                let g_env = self.env;
-                g_env
+            if self.not(self.cdr(clos)) {
+                self.env
             } else {
                 self.cdr(clos)
             }
@@ -190,7 +184,7 @@ impl Data {
         }
     }
     pub fn dump(self, _context: &'_ LispContext, _message: &'_ str) -> Data {
-        // println!("{}: {}", _message, self.clone().debug(_context));
+        // println!("{}: {}", _message, self.debug(_context));
         self
     }
 }

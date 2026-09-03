@@ -22,7 +22,7 @@ pub enum Prims {
 }
 
 pub fn to_prim(s: &str) -> Option<Prims> {
-    return match s {
+    match s {
         "+" => Some(Prims::Add),
         "-" => Some(Prims::Sub),
         "*" => Some(Prims::Mul),
@@ -39,7 +39,7 @@ pub fn to_prim(s: &str) -> Option<Prims> {
         "cdr" => Some(Prims::Cdr),
         "list" => Some(Prims::List),
         _ => None,
-    };
+    }
 }
 
 impl Prims {
@@ -64,8 +64,8 @@ impl Prims {
     }
 
     fn add(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
         let val1 = context.eval(op1, env);
         let val2 = context.eval(op2, env);
         if let (DataImpl::Number(num1), DataImpl::Number(num2)) = (
@@ -79,8 +79,8 @@ impl Prims {
     }
 
     fn sub(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
         let val1 = context.eval(op1, env);
         let val2 = context.eval(op2, env);
         if let (DataImpl::Number(num1), DataImpl::Number(num2)) = (
@@ -94,8 +94,8 @@ impl Prims {
     }
 
     fn mul(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
         let val1 = context.eval(op1, env);
         let val2 = context.eval(op2, env);
         if let (DataImpl::Number(num1), DataImpl::Number(num2)) = (
@@ -109,8 +109,8 @@ impl Prims {
     }
 
     fn div(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
         let val1 = context.eval(op1, env);
         let val2 = context.eval(op2, env);
         if let (DataImpl::Number(num1), DataImpl::Number(num2)) = (
@@ -124,8 +124,8 @@ impl Prims {
     }
 
     fn modular(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
         let val1 = context.eval(op1, env);
         let val2 = context.eval(op2, env);
         if let (DataImpl::Number(num1), DataImpl::Number(num2)) = (
@@ -139,19 +139,19 @@ impl Prims {
     }
 
     fn define(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
-        let result = context.eval(op2.clone(), env.clone());
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
+        let result = context.eval(op2, env);
         let global_env = context.get_env();
-        let result = context.pair(op1.clone(), result, global_env.clone());
+        let result = context.pair(op1, result, global_env);
         context.set_env(result);
-        return op1;
+        op1
     }
 
     fn lambda(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
-        return context.closure(op1, op2, env);
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
+        context.closure(op1, op2, env)
     }
 
     fn quote(context: &mut LispContext, a: Data, _env: Data) -> Data {
@@ -160,10 +160,10 @@ impl Prims {
 
     fn equ(context: &mut LispContext, a: Data, env: Data) -> Data {
         let tru = context.get_tru();
-        let op1 = context.car(a.clone());
-        let op2 = context.car(context.cdr(a.clone()));
-        let op1 = context.eval(op1, env.clone());
-        let op2 = context.eval(op2, env.clone());
+        let op1 = context.car(a);
+        let op2 = context.car(context.cdr(a));
+        let op1 = context.eval(op1, env);
+        let op2 = context.eval(op2, env);
         if context.get_impl(op1).unwrap() == context.get_impl(op2).unwrap() {
             tru
         } else {
@@ -171,10 +171,10 @@ impl Prims {
         }
     }
     fn if_(context: &mut LispContext, a: Data, env: Data) -> Data {
-        let cond = context.car(a.clone());
-        let op1 = context.car(context.cdr(a.clone()));
+        let cond = context.car(a);
+        let op1 = context.car(context.cdr(a));
         let op2 = context.car(context.cdr(context.cdr(a)));
-        let cond = context.eval(cond, env.clone());
+        let cond = context.eval(cond, env);
         if !context.not(cond) {
             context.eval(op1, env)
         } else {
@@ -183,7 +183,7 @@ impl Prims {
     }
 
     fn ev(context: &mut LispContext, a: Data, env: Data) -> Data {
-        return context.eval(a, env);
+        context.eval(a, env)
     }
 
     fn blink(context: &mut LispContext, _a: Data, _env: Data) -> Data {
@@ -194,27 +194,27 @@ impl Prims {
         // blink events, and each time the timer interrupt arrives, if the queue
         // was not empty, the handler will set a new timer based on the
         // subsequent event.
-        return context.err();
+        context.err()
     }
 
     fn car(context: &mut LispContext, a: Data, env: Data) -> Data {
         let eval_res = context.eval(a, env);
-        return context.car(eval_res);
+        context.car(eval_res)
     }
 
     fn cdr(context: &mut LispContext, a: Data, env: Data) -> Data {
         let eval_res = context.eval(a, env);
-        return context.cdr(eval_res);
+        context.cdr(eval_res)
     }
 
     fn list(context: &mut LispContext, a: Data, env: Data) -> Data {
         if a == context.nil() {
-            return a;
+            a
         } else {
-            let op1 = context.car(a.clone());
-            let eval_result = context.eval(op1, env.clone());
+            let op1 = context.car(a);
+            let eval_result = context.eval(op1, env);
             let cdr = Self::list(context, context.cdr(a), env);
-            return context.cons(eval_result, cdr);
+            context.cons(eval_result, cdr)
         }
     }
 }
