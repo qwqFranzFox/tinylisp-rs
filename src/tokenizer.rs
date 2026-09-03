@@ -1,90 +1,133 @@
-use std::{iter::Peekable, str::Chars, vec};
+use std::{
+    iter::Peekable,
+    str::{Chars, FromStr},
+};
 
 use crate::data::IntType;
 
-pub struct Tokenizer<'a> {
-    iter: Peekable<Chars<'a>>,
-}
+use thiserror::Error;
 
-impl<'a> Tokenizer<'a> {
-    pub fn new(code: &'_ str) -> Tokenizer<'_> {
-        Tokenizer {
-            iter: code.chars().peekable(),
-        }
-    }
-}
-
-impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token;
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.iter.peek()?.is_ascii_whitespace() {
-            self.iter.next()?;
-        }
-        let k = Token::match_lbrace(&mut self.iter)
-            .or_else(|| Token::match_rbrace(&mut self.iter))
-            .or_else(|| Token::match_number(&mut self.iter))
-            .or_else(|| Token::match_symbol(&mut self.iter));
-        k
-    }
+#[derive(Error, Debug)]
+pub enum TokenizerError {
+    #[error("Bad identifier {0}")]
+    BadIdentifier(String),
+    #[error("Unknown error")]
+    Unknown,
+    #[error("Invalid number: {0}")]
+    ParseNumberError(<IntType as FromStr>::Err),
 }
 
 #[derive(Debug)]
 pub enum Token {
-    Symbol(String),
-    Number(IntType),
     LBrace,
     RBrace,
+    Number(IntType),
+    Atomic(String),
 }
 
-impl Token {
-    pub fn match_symbol(code: &mut Peekable<Chars>) -> Option<Token> {
-        let mut cache: Vec<char> = vec![];
-        loop {
-            let &peek = code.peek()?;
-            if peek.is_whitespace() || peek == '(' || peek == ')' {
-                if cache.is_empty() {
-                    break None;
-                } else {
-                    break Some(Token::Symbol(cache.iter().collect()));
-                }
+struct CharStreamWrapper<'a> {
+    iter: Chars<'a>,
+}
+
+impl Iterator for CharStreamWrapper<'_> {
+    type Item = char;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+pub struct Tokenizer<'a> {
+    iter: Peekable<CharStreamWrapper<'a>>,
+}
+
+type TokenWrap = Result<Token, TokenizerError>;
+fn is_atomic_char(ch: char) -> bool {
+    !(ch.is_whitespace() || ch == '(' || ch == ')')
+}
+fn into_number(cache: String) -> Result<Token, TokenizerError> {
+    cache
+        .parse()
+        .map(Token::Number)
+        .map_err(TokenizerError::ParseNumberError)
+}
+impl<'a> Tokenizer<'a> {
+    pub fn new<P>(str: &'a P) -> Tokenizer<'a>
+    where
+        P: AsRef<str> + 'a,
+    {
+        Tokenizer {
+            iter: CharStreamWrapper {
+                iter: str.as_ref().chars(),
+            }
+            .peekable(),
+        }
+    }
+    fn next_token(&mut self) -> Option<TokenWrap> {
+        while let Some(ch) = self.iter.peek() {
+            if ch.is_whitespace() {
+                self.iter.next()?;
             } else {
-                cache.push(code.next()?);
+                break;
             }
         }
-    }
-    pub fn match_number(code: &mut Peekable<Chars>) -> Option<Token> {
-        let mut cache: Vec<char> = vec![];
-        loop {
-            let &peek = code.peek()?;
-            if !peek.is_numeric() {
-                if cache.is_empty() {
-                    break None;
-                } else {
-                    break Some(Token::Number(
-                        cache.iter().collect::<String>().parse().unwrap(),
-                    ));
+        Some(match *self.iter.peek()? {
+            '0'..='9' => {
+                // match number
+                let mut cache: String = String::new();
+                while let Some(&ch) = self.iter.peek() {
+                    if ch.is_numeric() {
+                        cache.push(ch);
+                        self.iter.next()?;
+                    } else {
+                        break;
+                    }
                 }
-            } else {
-                cache.push(code.next()?);
+                if let Some(&ch) = self.iter.peek() {
+                    if !is_atomic_char(ch) {
+                        into_number(cache)
+                    } else {
+                        while let Some(&ch) = self.iter.peek() {
+                            if is_atomic_char(ch) {
+                                cache.push(ch);
+                                self.iter.next();
+                            } else {
+                                break;
+                            }
+                        }
+                        Err(TokenizerError::BadIdentifier(cache))
+                    }
+                } else {
+                    into_number(cache)
+                }
             }
-        }
+            '(' => {
+                self.iter.next();
+                Ok(Token::LBrace)
+            }
+            ')' => {
+                self.iter.next();
+                Ok(Token::RBrace)
+            }
+            _ => {
+                // match atomic
+                let mut cache: String = String::new();
+                while let Some(&ch) = self.iter.peek() {
+                    if is_atomic_char(ch) {
+                        cache.push(ch);
+                        self.iter.next()?;
+                    } else {
+                        break;
+                    }
+                }
+                Ok(Token::Atomic(cache))
+            }
+        })
     }
-    pub fn match_lbrace(code: &mut Peekable<Chars>) -> Option<Token> {
-        let &peek = code.peek()?;
-        if peek == '(' {
-            code.next()?;
-            Some(Token::LBrace)
-        } else {
-            None
-        }
-    }
-    pub fn match_rbrace(code: &mut Peekable<Chars>) -> Option<Token> {
-        let &peek = code.peek()?;
-        if peek == ')' {
-            code.next()?;
-            Some(Token::RBrace)
-        } else {
-            None
-        }
+}
+
+impl Iterator for Tokenizer<'_> {
+    type Item = Result<Token, TokenizerError>;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_token()
     }
 }
