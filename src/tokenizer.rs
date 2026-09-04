@@ -1,21 +1,6 @@
-use std::{
-    iter::Peekable,
-    str::{Chars, FromStr},
-};
+use std::{iter::Peekable, str::Chars};
 
 use crate::data::IntType;
-
-use thiserror::Error;
-
-#[derive(Error, Debug)]
-pub enum TokenizerError {
-    #[error("Bad identifier {0}")]
-    BadIdentifier(String),
-    #[error("Unknown error")]
-    Unknown,
-    #[error("Invalid number: {0}")]
-    ParseNumberError(<IntType as FromStr>::Err),
-}
 
 #[derive(Debug)]
 pub enum Token {
