@@ -76,13 +76,12 @@ fn main() -> ! {
             // a.set_low();
             let result = lisp.eval(code);
             let _ = res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
-
             // let results: alloc::vec::Vec<_> = iter.collect();
             // for result in results {
             //     let _ =
             //         res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
             // }
+            lisp.get_context_mut().garbage_collection();
         }
-        lisp.get_context_mut().garbage_collection();
     }
 }
