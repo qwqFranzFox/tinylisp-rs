@@ -25,6 +25,7 @@ fn main() {
         //         .get_env()
         //         .debug(lisp.get_context_mut())
         // )
+        lisp.get_context_mut().garbage_collection();
     }
     for line in stdin().lines() {
         match line {
@@ -42,5 +43,6 @@ fn main() {
                 println!("Error: {}", e)
             }
         }
+        lisp.get_context_mut().garbage_collection();
     }
 }

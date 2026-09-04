@@ -1,6 +1,7 @@
 use crate::prims::Prims;
 use crate::prims::to_prim;
 use slotmap::{self, SlotMap};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
@@ -173,6 +174,39 @@ impl LispContext {
             }
         });
         self.eval(body, env).dump(self, "reduce result")
+    }
+
+    //  ====== Garbage Collection ======
+    //
+
+    fn walk_env(&self, node: Data, mark: &mut HashSet<Data>) {
+        if let None = mark.get(&node) {
+            mark.insert(node);
+            let data = self.get_impl(node).unwrap();
+            if let DataImpl::Cons(car, cdr) = data {
+                self.walk_env(car, mark);
+                self.walk_env(cdr, mark);
+            } else if let DataImpl::Closure(car, cdr) = data {
+                self.walk_env(car, mark);
+                self.walk_env(cdr, mark);
+            }
+        }
+    }
+
+    fn mark(&self) -> HashSet<Data> {
+        let mut mark = HashSet::new();
+        mark.insert(self.err);
+        mark.insert(self.tru);
+        mark.insert(self.nil);
+        self.walk_env(self.env, &mut mark);
+        mark
+    }
+    pub fn garbage_collection(&mut self) {
+        println!("Before GC, report size: {}", self.alloc.len());
+        // mark & sweep GC
+        let mark = self.mark();
+        self.alloc.retain(|k, _| mark.contains(&k));
+        println!("After GC, report size: {}", self.alloc.len());
     }
 }
 
