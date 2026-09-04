@@ -2,6 +2,7 @@ extern crate alloc;
 pub use alloc::string::String;
 pub use alloc::string::ToString;
 pub use alloc::vec::Vec;
+pub use alloc::collections::BTreeSet as HashSet;
 
 use rp235x_hal as hal;
 #[unsafe(link_section = ".start_block")]

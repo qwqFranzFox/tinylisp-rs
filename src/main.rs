@@ -64,6 +64,7 @@ fn main() -> ! {
         //         result.debug(lisp.get_context_mut())
         //     ));
         // }
+        lisp.get_context_mut().garbage_collection();
     }
 
     loop {
@@ -82,5 +83,6 @@ fn main() -> ! {
             //         res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
             // }
         }
+        lisp.get_context_mut().garbage_collection();
     }
 }
