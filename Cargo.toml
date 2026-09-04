@@ -7,4 +7,3 @@ edition = "2024"
 env_logger = "0.11.9"
 log = "0.4.29"
 slotmap = "1.1.1"
-thiserror = { version = "2.0.20" }

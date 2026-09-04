@@ -23,6 +23,7 @@ pub enum Token {
     RBrace,
     Number(IntType),
     Atomic(String),
+    Error,
 }
 
 struct CharStreamWrapper<'a> {
@@ -40,15 +41,11 @@ pub struct Tokenizer<'a> {
     iter: Peekable<CharStreamWrapper<'a>>,
 }
 
-type TokenWrap = Result<Token, TokenizerError>;
 fn is_atomic_char(ch: char) -> bool {
     !(ch.is_whitespace() || ch == '(' || ch == ')')
 }
-fn into_number(cache: String) -> Result<Token, TokenizerError> {
-    cache
-        .parse()
-        .map(Token::Number)
-        .map_err(TokenizerError::ParseNumberError)
+fn into_number(cache: String) -> Token {
+    cache.parse().map(Token::Number).unwrap_or(Token::Error)
 }
 impl<'a> Tokenizer<'a> {
     pub fn new<P>(str: &'a P) -> Tokenizer<'a>
@@ -62,7 +59,7 @@ impl<'a> Tokenizer<'a> {
             .peekable(),
         }
     }
-    fn next_token(&mut self) -> Option<TokenWrap> {
+    fn next_token(&mut self) -> Option<Token> {
         while let Some(ch) = self.iter.peek() {
             if ch.is_whitespace() {
                 self.iter.next()?;
@@ -94,7 +91,8 @@ impl<'a> Tokenizer<'a> {
                                 break;
                             }
                         }
-                        Err(TokenizerError::BadIdentifier(cache))
+                        // Err(TokenizerError::BadIdentifier(cache))
+                        Token::Error
                     }
                 } else {
                     into_number(cache)
@@ -102,11 +100,11 @@ impl<'a> Tokenizer<'a> {
             }
             '(' => {
                 self.iter.next();
-                Ok(Token::LBrace)
+                Token::LBrace
             }
             ')' => {
                 self.iter.next();
-                Ok(Token::RBrace)
+                Token::RBrace
             }
             _ => {
                 // match atomic
@@ -119,14 +117,14 @@ impl<'a> Tokenizer<'a> {
                         break;
                     }
                 }
-                Ok(Token::Atomic(cache))
+                Token::Atomic(cache)
             }
         })
     }
 }
 
 impl Iterator for Tokenizer<'_> {
-    type Item = Result<Token, TokenizerError>;
+    type Item = Token;
     fn next(&mut self) -> Option<Self::Item> {
         self.next_token()
     }
