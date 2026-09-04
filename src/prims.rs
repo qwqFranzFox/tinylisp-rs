@@ -1,3 +1,5 @@
+use std::env;
+
 use crate::data::{Data, DataImpl, LispContext};
 // use crate::ports::ToString;
 // use core::ops::Deref;
@@ -19,6 +21,7 @@ pub enum Prims {
     Car,
     Cdr,
     List,
+    Leta,
 }
 
 pub fn to_prim(s: &str) -> Option<Prims> {
@@ -38,6 +41,7 @@ pub fn to_prim(s: &str) -> Option<Prims> {
         "car" => Some(Prims::Car),
         "cdr" => Some(Prims::Cdr),
         "list" => Some(Prims::List),
+        "let*" => Some(Prims::Leta),
         _ => None,
     }
 }
@@ -60,6 +64,7 @@ impl Prims {
             Prims::Car => Self::car(context, a, env),
             Prims::Cdr => Self::cdr(context, a, env),
             Prims::List => Self::list(context, a, env),
+            Prims::Leta => Self::leta(context, a, env),
         }
     }
 
@@ -216,5 +221,18 @@ impl Prims {
             let cdr = Self::list(context, context.cdr(a), env);
             context.cons(eval_result, cdr)
         }
+    }
+
+    fn leta(context: &mut LispContext, a: Data, env: Data) -> Data {
+        let mut index = a;
+        let mut env = env;
+        while index != context.nil() && context.cdr(index) != context.nil() {
+            let item = context.car(index);
+            let name = context.car(item);
+            let value = context.eval(context.car(context.cdr(item)), env);
+            env = context.pair(name, value, env);
+            index = context.cdr(index);
+        }
+        return context.eval(context.car(index), env);
     }
 }
