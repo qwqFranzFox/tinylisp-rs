@@ -76,6 +76,11 @@ fn main() -> ! {
             // a.set_low();
             let result = lisp.eval(code);
             let _ = res_write.enqueue(format!("Result {}", result.debug(lisp.get_context_mut())));
+            let _ = res_write.enqueue(format!(
+                "Memory: {} bytes used, {} bytes free",
+                HEAP.used(),
+                HEAP.free()
+            ));
             // let results: alloc::vec::Vec<_> = iter.collect();
             // for result in results {
             //     let _ =
