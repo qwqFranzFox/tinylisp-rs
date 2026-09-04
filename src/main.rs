@@ -9,6 +9,7 @@ mod prims;
 mod tokenizer;
 
 use crate::peri::PeriWrap;
+use crate::ports::Vec;
 use alloc::format;
 use alloc::string::String;
 use alloc_cortex_m::CortexMHeap as Heap;
@@ -52,10 +53,10 @@ fn main() -> ! {
 
     {
         // run init and prelude
-        let parser = Parser::new(Tokenizer::new(include_str!("../prelude.lisp")));
+        let parser = Parser::new(Tokenizer::new(&include_str!("../prelude.lisp")));
         // a.set_high();
         let iter = parser.chain_eval(&mut lisp);
-        let results: alloc::vec::Vec<_> = iter.collect();
+        let _results: Vec<_> = iter.collect();
         // BUG:: Writing to serial before connection cause crash
         // for result in results {
         //     let _ = res_write.enqueue(format!(
@@ -69,7 +70,7 @@ fn main() -> ! {
         if next_read.ready() {
             a.set_high();
             let block = next_read.dequeue().unwrap();
-            let mut parser = Parser::new(Tokenizer::new(block.as_str()));
+            let mut parser = Parser::new(Tokenizer::new(&block));
             let code = parser.eval(lisp.get_context_mut());
             // a.set_low();
             let result = lisp.eval(code);

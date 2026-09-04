@@ -21,7 +21,7 @@ impl<'a> Parser<'a> {
     fn parse(context: &mut LispContext, tokens: &mut Peekable<Tokenizer>) -> Option<Data> {
         if let Some(token) = tokens.peek() {
             match token {
-                Token::Symbol(sym) => {
+                Token::Atomic(sym) => {
                     if sym == "\'" {
                         Self::quote(context, tokens)
                     } else {
@@ -32,6 +32,7 @@ impl<'a> Parser<'a> {
                     tokens.next();
                     Self::list(context, tokens)
                 }
+                Token::Error => Some(context.err()),
                 _ => Self::atomic(context, tokens),
             }
         } else {
@@ -52,7 +53,7 @@ impl<'a> Parser<'a> {
                 tokens.next()?;
                 Some(context.nil())
             }
-            Token::Symbol(sym) => {
+            Token::Atomic(sym) => {
                 if sym == "." {
                     tokens.next()?;
                     let x = Self::parse(context, tokens);
@@ -64,6 +65,7 @@ impl<'a> Parser<'a> {
                     Some(context.cons(car, cdr))
                 }
             }
+            Token::Error => Some(context.err()),
             _ => {
                 let car = Self::parse(context, tokens)?;
                 let cdr = Self::list(context, tokens)?;
@@ -73,7 +75,7 @@ impl<'a> Parser<'a> {
     }
     fn atomic(context: &mut LispContext, tokens: &mut Peekable<Tokenizer>) -> Option<Data> {
         match tokens.next()? {
-            Token::Symbol(sym) => context.prim(&sym).or_else(|| Some(context.atom(&sym))),
+            Token::Atomic(sym) => context.prim(&sym).or_else(|| Some(context.atom(&sym))),
             Token::Number(num) => Some(context.number(num)),
             _ => None,
         }

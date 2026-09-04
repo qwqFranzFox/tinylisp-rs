@@ -1,115 +1,116 @@
 use crate::data::IntType;
-use crate::ports::{String, Vec, vec};
+use crate::ports::String;
 use core::{iter::Peekable, str::Chars};
 
-struct FilterComment<'a> {
-    iter: Peekable<Chars<'a>>,
+#[derive(Debug)]
+pub enum Token {
+    LBrace,
+    RBrace,
+    Number(IntType),
+    Atomic(String),
+    Error,
 }
 
-impl<'a> FilterComment<'a> {
-    pub fn new(iter: Chars) -> FilterComment {
-        FilterComment {
-            iter: iter.peekable(),
-        }
-    }
+struct CharStreamWrapper<'a> {
+    iter: Chars<'a>,
 }
 
-impl<'a> Iterator for FilterComment<'a> {
+impl Iterator for CharStreamWrapper<'_> {
     type Item = char;
     fn next(&mut self) -> Option<Self::Item> {
-        while *self.iter.peek()? == ';' {
-            while *self.iter.peek()? != '\n' {
-                self.iter.next()?;
-            }
-        }
         self.iter.next()
     }
 }
 
 pub struct Tokenizer<'a> {
-    iter: Peekable<FilterComment<'a>>,
+    iter: Peekable<CharStreamWrapper<'a>>,
 }
 
+fn is_atomic_char(ch: char) -> bool {
+    !(ch.is_whitespace() || ch == '(' || ch == ')')
+}
+fn into_number(cache: String) -> Token {
+    cache.parse().map(Token::Number).unwrap_or(Token::Error)
+}
 impl<'a> Tokenizer<'a> {
-    pub fn new(code: &'_ str) -> Tokenizer<'_> {
+    pub fn new<P>(str: &'a P) -> Tokenizer<'a>
+    where
+        P: AsRef<str> + 'a,
+    {
         Tokenizer {
-            iter: FilterComment::new(code.chars()).peekable(),
+            iter: CharStreamWrapper {
+                iter: str.as_ref().chars(),
+            }
+            .peekable(),
         }
     }
-}
-
-impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token;
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.iter.peek()?.is_ascii_whitespace() {
-            self.iter.next()?;
+    fn next_token(&mut self) -> Option<Token> {
+        while let Some(ch) = self.iter.peek() {
+            if ch.is_whitespace() {
+                self.iter.next()?;
+            } else {
+                break;
+            }
         }
-        let k = Token::match_lbrace(&mut self.iter)
-            .or_else(|| Token::match_rbrace(&mut self.iter))
-            .or_else(|| Token::match_number(&mut self.iter))
-            .or_else(|| Token::match_symbol(&mut self.iter));
-        k
-    }
-}
-
-#[derive(Debug)]
-pub enum Token {
-    Symbol(String),
-    Number(IntType),
-    LBrace,
-    RBrace,
-}
-
-impl Token {
-    fn match_symbol(code: &mut Peekable<FilterComment>) -> Option<Token> {
-        let mut cache: Vec<char> = vec![];
-        loop {
-            if let Some(&peek) = code.peek() {
-                if peek.is_whitespace() || peek == '(' || peek == ')' {
-                    if cache.is_empty() {
-                        break None;
+        Some(match *self.iter.peek()? {
+            '0'..='9' => {
+                // match number
+                let mut cache: String = String::new();
+                while let Some(&ch) = self.iter.peek() {
+                    if ch.is_numeric() {
+                        cache.push(ch);
+                        self.iter.next()?;
                     } else {
-                        break Some(Token::Symbol(cache.iter().collect()));
+                        break;
+                    }
+                }
+                if let Some(&ch) = self.iter.peek() {
+                    if !is_atomic_char(ch) {
+                        into_number(cache)
+                    } else {
+                        while let Some(&ch) = self.iter.peek() {
+                            if is_atomic_char(ch) {
+                                cache.push(ch);
+                                self.iter.next();
+                            } else {
+                                break;
+                            }
+                        }
+                        // Err(TokenizerError::BadIdentifier(cache))
+                        Token::Error
                     }
                 } else {
-                    cache.push(code.next()?);
+                    into_number(cache)
                 }
             }
-        }
-    }
-    fn match_number(code: &mut Peekable<FilterComment>) -> Option<Token> {
-        let mut cache: Vec<char> = vec![];
-        loop {
-            let &peek = code.peek()?;
-            if !peek.is_numeric() {
-                if cache.is_empty() {
-                    break None;
-                } else {
-                    break Some(Token::Number(
-                        cache.iter().collect::<String>().parse().unwrap(),
-                    ));
-                }
-            } else {
-                cache.push(code.next()?);
+            '(' => {
+                self.iter.next();
+                Token::LBrace
             }
-        }
+            ')' => {
+                self.iter.next();
+                Token::RBrace
+            }
+            _ => {
+                // match atomic
+                let mut cache: String = String::new();
+                while let Some(&ch) = self.iter.peek() {
+                    if is_atomic_char(ch) {
+                        cache.push(ch);
+                        self.iter.next()?;
+                    } else {
+                        break;
+                    }
+                }
+                Token::Atomic(cache)
+            }
+        })
     }
-    fn match_lbrace(code: &mut Peekable<FilterComment>) -> Option<Token> {
-        let &peek = code.peek()?;
-        if peek == '(' {
-            code.next()?;
-            Some(Token::LBrace)
-        } else {
-            None
-        }
-    }
-    fn match_rbrace(code: &mut Peekable<FilterComment>) -> Option<Token> {
-        let &peek = code.peek()?;
-        if peek == ')' {
-            code.next()?;
-            Some(Token::RBrace)
-        } else {
-            None
-        }
+}
+
+impl Iterator for Tokenizer<'_> {
+    type Item = Token;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_token()
     }
 }

@@ -1,7 +1,6 @@
 extern crate alloc;
 pub use alloc::string::String;
 pub use alloc::string::ToString;
-pub use alloc::vec;
 pub use alloc::vec::Vec;
 
 use rp235x_hal as hal;
