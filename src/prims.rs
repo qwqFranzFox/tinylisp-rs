@@ -1,5 +1,3 @@
-use std::env;
-
 use crate::data::{Data, DataImpl, LispContext};
 // use crate::ports::ToString;
 // use core::ops::Deref;
